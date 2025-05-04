@@ -1,0 +1,10 @@
+services:
+  tax-bot:
+    build: .
+    container_name: tax-bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - ./data:/root/data
+      - ./logs:/root/logs
+    restart: always
