@@ -1,4 +1,4 @@
-module telegram-health-diary
+module telegram-health-dairy
 
 go 1.24.2
 
