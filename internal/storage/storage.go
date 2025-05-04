@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"telegram-health-diary/internal/models"
+	"telegram-health-dairy/internal/models"
 )
 
 //go:embed schema.sql

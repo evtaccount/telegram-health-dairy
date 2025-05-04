@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"telegram-health-diary/internal/models"
-	"telegram-health-diary/internal/storage"
-	"telegram-health-diary/internal/utils"
+	"telegram-health-dairy/internal/models"
+	"telegram-health-dairy/internal/storage"
+	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )

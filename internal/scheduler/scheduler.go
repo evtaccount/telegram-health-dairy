@@ -4,9 +4,9 @@ import (
 	"log"
 	"time"
 
-	"telegram-health-diary/internal/handlers"
-	"telegram-health-diary/internal/storage"
-	"telegram-health-diary/internal/utils"
+	"telegram-health-dairy/internal/handlers"
+	"telegram-health-dairy/internal/storage"
+	"telegram-health-dairy/internal/utils"
 
 	"github.com/go-co-op/gocron/v2"
 )

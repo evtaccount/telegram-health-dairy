@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"telegram-health-diary/internal/handlers"
-	"telegram-health-diary/internal/scheduler"
-	"telegram-health-diary/internal/storage"
-	"telegram-health-diary/internal/utils"
+	"telegram-health-dairy/internal/handlers"
+	"telegram-health-dairy/internal/scheduler"
+	"telegram-health-dairy/internal/storage"
+	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
