@@ -1,7 +1,7 @@
 services:
-  tax-bot:
+  health-dairy-bot:
     build: .
-    container_name: tax-bot
+    container_name: health-dairy-bot
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
