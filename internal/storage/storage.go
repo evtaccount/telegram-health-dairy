@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	_ "modernc.org/sqlite"
+
 	"telegram-health-dairy/internal/models"
 )
 
