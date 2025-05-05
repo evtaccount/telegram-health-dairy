@@ -2,6 +2,7 @@ services:
   health-dairy-bot:
     build: .
     container_name: health-dairy-bot
+    env_file: .env
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
