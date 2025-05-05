@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/handlers"
 	"telegram-health-dairy/internal/scheduler"
@@ -14,10 +13,10 @@ import (
 
 func main() {
 	cfg := config.Load()
-	log.Println("TELEGRAM_BOT_TOKEN=", os.Getenv("TELEGRAM_BOT_TOKEN"))
 
 	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	utils.Must(err)
+	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	db, err := storage.New("bot.db")
 	utils.Must(err)
