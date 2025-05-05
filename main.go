@@ -1,21 +1,19 @@
 package main
 
 import (
-	"os"
-
+	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/handlers"
 	"telegram-health-dairy/internal/scheduler"
 	"telegram-health-dairy/internal/storage"
 	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	_ = godotenv.Load() // TELEGRAM_BOT_TOKEN etc.
+	cfg := config.Load()
 
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_BOT_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	utils.Must(err)
 
 	db, err := storage.New("bot.db")
