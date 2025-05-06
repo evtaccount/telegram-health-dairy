@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/handlers"
 	"telegram-health-dairy/internal/scheduler"
@@ -16,12 +15,12 @@ func main() {
 
 	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	utils.Must(err)
-	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	db, err := storage.New("bot.db")
 	utils.Must(err)
 
 	h := &handlers.Handler{Bot: bot, DB: db}
+
 	_, err = scheduler.Start(h, db)
 	utils.Must(err)
 
@@ -32,11 +31,7 @@ func main() {
 
 	for upd := range updates {
 		if upd.Message != nil {
-			if upd.Message.IsCommand() && upd.Message.Command() == "start" {
-				h.HandleStart(upd.Message)
-				continue
-			}
-			h.HandleText(upd.Message)
+			h.HandleMessage(upd.Message)
 		}
 		if upd.CallbackQuery != nil {
 			h.HandleCallback(upd.CallbackQuery)
