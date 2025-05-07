@@ -20,7 +20,7 @@ func Register(bot *tgbotapi.BotAPI, db *storage.DB) {
 	go h.listen() // background
 
 	_, err := scheduler.Start(bot, db)
-	utils.Must(err)
+	utils.LogFor(err)
 }
 
 func (h *Handler) listen() {

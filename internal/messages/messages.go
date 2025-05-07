@@ -29,7 +29,7 @@ func SendMorning(bot *tgbotapi.BotAPI, db *storage.DB, u *models.User, dateKey s
 	msg := tgbotapi.NewMessage(u.ChatID, "Доброе утро! Как самочувствие?")
 	msg.ReplyMarkup = kb
 	m, err := bot.Send(msg)
-	utils.Must(err)
+	utils.LogFor(err)
 
 	return db.InsertPending(&models.PendingMessage{
 		ChatID:    u.ChatID,
@@ -53,7 +53,7 @@ func SendEvening(bot *tgbotapi.BotAPI, db *storage.DB, u *models.User, dateKey s
 	msg := tgbotapi.NewMessage(u.ChatID, txt)
 	msg.ReplyMarkup = kb
 	m, err := bot.Send(msg)
-	utils.Must(err)
+	utils.LogFor(err)
 
 	return db.InsertPending(&models.PendingMessage{
 		ChatID:    u.ChatID,

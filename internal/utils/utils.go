@@ -2,7 +2,7 @@ package utils
 
 import "log"
 
-func Must(e error) {
+func LogFor(e error) {
 	if e != nil {
 		log.Fatal(e)
 	}

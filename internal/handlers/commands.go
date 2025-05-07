@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"telegram-health-dairy/internal/models"
+	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -63,15 +64,19 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 }
 
 func (h *Handler) handleStart(chatID int64) {
-	_ = h.ensureUser(chatID)
-	_ = h.DB.SetSessionState(chatID, models.StateInitial)
+	err := h.ensureUser(chatID)
+	utils.LogFor(err)
+
+	err = h.DB.SetSessionState(chatID, models.StateInitial)
+	utils.LogFor(err)
+
 	h.askConfirmDefaults(chatID)
 }
 
 // helpers
 func (h *Handler) ensureUser(chatID int64) error {
-	u, _ := h.DB.GetUser(chatID)
-	if u == nil {
+	user, _ := h.DB.GetUser(chatID)
+	if user == nil {
 		return h.DB.UpsertUser(&models.User{ChatID: chatID})
 	}
 	return nil

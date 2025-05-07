@@ -12,12 +12,11 @@ func main() {
 	cfg := config.Load()
 
 	bot, err := bot.New(cfg.TelegramToken)
-	utils.Must(err)
+	utils.LogFor(err)
 
 	db, err := storage.New(cfg.DBName)
-	utils.Must(err)
+	utils.LogFor(err)
 
 	handlers.Register(bot.API, db)
-
 	bot.Run()
 }
