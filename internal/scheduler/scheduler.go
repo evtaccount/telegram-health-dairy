@@ -1,6 +1,9 @@
 package scheduler
 
 import (
+	"errors"
+	"math"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -47,7 +50,11 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 				var tz, morning, evening string
 				_ = rows.Scan(&chatID, &tz, &morning, &evening)
 
-				loc, _ := time.LoadLocation(tz)
+				loc, err := tzToLocation(tz)
+				if err != nil {
+					continue
+				}
+
 				now := time.Now().In(loc)
 				day := now.Format("2006-01-02")
 
@@ -99,4 +106,25 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 
 	s.Start()
 	return s, nil
+}
+
+var offRx = regexp.MustCompile(`^(?i)(gmt|utc)?([+-]\d{1,2})(?::?(\d{2}))?$`)
+
+func tzToLocation(tz string) (*time.Location, error) {
+	// пробуем IANA
+	if loc, err := time.LoadLocation(tz); err == nil {
+		return loc, nil
+	}
+	// offset?
+	m := offRx.FindStringSubmatch(tz)
+	if m == nil {
+		return nil, errors.New("unknown tz")
+	}
+	h, _ := strconv.Atoi(m[2])
+	mnt := 0
+	if m[3] != "" {
+		mnt, _ = strconv.Atoi(m[3])
+	}
+	offset := h*3600 + int(math.Copysign(float64(mnt*60), float64(h)))
+	return time.FixedZone(tz, offset), nil
 }

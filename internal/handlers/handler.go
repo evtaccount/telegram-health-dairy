@@ -25,7 +25,6 @@ func Register(bot *tgbotapi.BotAPI, db *storage.DB) {
 
 func (h *Handler) listen() {
 	go func() {
-		// было: scheduler.Start(h, h.DB)
 		if _, err := scheduler.Start(h.Bot, h.DB); err != nil {
 			log.Fatal(err)
 		}
@@ -41,6 +40,7 @@ func (h *Handler) listen() {
 		case upd.Message != nil:
 			// === 📌 Обработка текстовых сообщений ===
 			h.HandleMessage(upd.Message)
+
 		case upd.CallbackQuery != nil:
 			// === 📌 Обработка callback кнопок ===
 			h.HandleCallback(upd.CallbackQuery)

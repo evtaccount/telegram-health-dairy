@@ -76,8 +76,14 @@ func (h *Handler) handleStart(chatID int64) {
 // helpers
 func (h *Handler) ensureUser(chatID int64) error {
 	user, _ := h.DB.GetUser(chatID)
+
 	if user == nil {
-		return h.DB.UpsertUser(&models.User{ChatID: chatID})
+		return h.DB.UpsertUser(&models.User{
+			ChatID:    chatID,
+			TZ:        "Local",
+			MorningAt: "10:00",
+			EveningAt: "18:00",
+		})
 	}
 	return nil
 }
@@ -88,9 +94,11 @@ func (h *Handler) send(chatID int64, text string) {
 
 func (h *Handler) askConfirmDefaults(chatID int64) {
 	u, _ := h.DB.GetUser(chatID)
-	msg := tgbotapi.NewMessage(chatID,
-		fmt.Sprintf("Текущие настройки:\nУтро: %s\nВечер: %s\nTZ: %s",
-			u.MorningAt, u.EveningAt, u.TZ))
+
+	msg := tgbotapi.NewMessage(
+		chatID,
+		fmt.Sprintf("Текущие настройки:\nУтро: %s\nВечер: %s\nTZ: %s", u.MorningAt, u.EveningAt, u.TZ),
+	)
 	kb := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Подтвердить", cbCfgConfirm),

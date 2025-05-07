@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,18 +48,22 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 		u.EveningAt = msg.Text
 		_ = h.DB.UpsertUser(u)
 		_ = h.DB.SetUserState(chatID, "setup_timezone")
-		h.send(chatID, "Введите часовой пояс, например Europe/Moscow")
+		h.send(chatID, "Введите часовой пояс (например Europe/Moscow или +3, -05:30, UTC)")
 
 	case state == "setup_timezone":
-		tz := msg.Text
-		if _, err := time.LoadLocation(tz); err != nil {
+		tz, err := validateTZ(msg.Text)
+
+		if err != nil {
 			h.send(chatID, "Неверный TZ")
 			return
 		}
+
 		u, _ := h.DB.GetUser(chatID)
 		u.TZ = tz
+
 		_ = h.DB.UpsertUser(u)
 		_ = h.DB.SetUserState(chatID, "")
+
 		h.DB.SetSessionState(chatID, "idle")
 		h.send(chatID, "Настройки сохранены!")
 
@@ -84,4 +90,45 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 		_ = h.DB.SetUserState(chatID, "")
 		h.send(chatID, "Время ужина сохранено!")
 	}
+}
+
+var offRx = regexp.MustCompile(`^(?i)(?:gmt|utc)?([+-]\d{1,2})(?::?(\d{2}))?$`)
+
+func validateTZ(input string) (string, error) {
+	tz, err := parseUserTZ(input)
+
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := time.LoadLocation(tz); err != nil {
+		return "", err
+	}
+
+	return tz, nil
+}
+
+func parseUserTZ(input string) (string, error) {
+	input = strings.TrimSpace(input)
+
+	// 1. пробуем как IANA-имя
+	if _, err := time.LoadLocation(input); err == nil {
+		return input, nil
+	}
+
+	// 2. пробуем как смещение
+	m := offRx.FindStringSubmatch(strings.ToUpper(input))
+	if m == nil {
+		return "", errors.New("не распознан формат: пример +3, -05:30 или Europe/Moscow")
+	}
+
+	hPart := m[1]   // "+3"  или "-05"
+	minPart := m[2] // ""   или "30"
+
+	if minPart == "" {
+		minPart = "00"
+	}
+	// Нормализуем к формату "+03:00"
+	h, _ := strconv.Atoi(hPart)
+	return fmt.Sprintf("%+03d:%s", h, minPart), nil
 }

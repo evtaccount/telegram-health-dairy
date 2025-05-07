@@ -80,13 +80,16 @@ func (d *DB) UpsertUser(u *models.User) error {
 
 func (d *DB) GetUser(chatID int64) (*models.User, error) {
 	var u models.User
+
 	err := d.QueryRow(`
         SELECT id, chat_id, tz, morning_at, evening_at, created_at
         FROM users WHERE chat_id=?`, chatID,
 	).Scan(&u.ID, &u.ChatID, &u.TZ, &u.MorningAt, &u.EveningAt, &u.CreatedAt)
+
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
+
 	return &u, err
 }
 
