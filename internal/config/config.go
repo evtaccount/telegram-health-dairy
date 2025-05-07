@@ -7,13 +7,13 @@ import (
 )
 
 type Config struct {
-	DataDir       string
+	DBName        string
 	TelegramToken string
 }
 
 func Load() Config {
 	return Config{
-		DataDir:       DataDir,
+		DBName:        DBName,
 		TelegramToken: getBotToken(),
 	}
 }
@@ -36,6 +36,6 @@ func getBotToken() string {
 }
 
 const (
-	DataDir = "./data"
-	logDir  = "./logs"
+	DBName = "bot.db"
+	logDir = "./logs"
 )

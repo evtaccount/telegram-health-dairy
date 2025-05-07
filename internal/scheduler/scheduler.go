@@ -4,14 +4,16 @@ import (
 	"log"
 	"time"
 
-	"telegram-health-dairy/internal/handlers"
+	"telegram-health-dairy/internal/messages"
 	"telegram-health-dairy/internal/storage"
 	"telegram-health-dairy/internal/utils"
 
 	"github.com/go-co-op/gocron/v2"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func Start(h *handlers.Handler, db *storage.DB) (gocron.Scheduler, error) {
+func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 	// Создаём новый планировщик
 	s, err := gocron.NewScheduler()
 	utils.Must(err)
@@ -42,7 +44,7 @@ func Start(h *handlers.Handler, db *storage.DB) (gocron.Scheduler, error) {
 				if now.Format("15:04") == u.MorningAt {
 					dateKey := day + "-morning"
 					if !db.HasPendingOrAnswered(u.ChatID, dateKey) {
-						if err := h.SendMorning(&u, dateKey); err != nil {
+						if err := messages.SendMorning(bot, db, &u, dateKey); err != nil {
 							log.Println("Ошибка отправки утреннего сообщения:", err)
 						}
 					}
@@ -52,7 +54,7 @@ func Start(h *handlers.Handler, db *storage.DB) (gocron.Scheduler, error) {
 				if now.Format("15:04") == u.EveningAt {
 					dateKey := day + "-evening"
 					if !db.HasPendingOrAnswered(u.ChatID, dateKey) {
-						if err := h.SendEvening(&u, dateKey); err != nil {
+						if err := messages.SendEvening(bot, db, &u, dateKey); err != nil {
 							log.Println("Ошибка отправки вечернего сообщения:", err)
 						}
 					}

@@ -7,6 +7,16 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const (
+	btnComplaints   = "Жалобы"
+	btnNoComplaints = "Нет жалоб"
+	btnAteNow       = "Поел"
+	btnAteAt        = "Поел в …"
+
+	btnChange = "Изменить"
+	btnCancel = "Отмена"
+)
+
 func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 	data := cq.Data
 	chatID := cq.Message.Chat.ID

@@ -1,40 +1,23 @@
 package main
 
 import (
+	"telegram-health-dairy/internal/bot"
 	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/handlers"
-	"telegram-health-dairy/internal/scheduler"
 	"telegram-health-dairy/internal/storage"
 	"telegram-health-dairy/internal/utils"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func main() {
 	cfg := config.Load()
 
-	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
+	bot, err := bot.New(cfg.TelegramToken)
 	utils.Must(err)
 
-	db, err := storage.New("bot.db")
+	db, err := storage.New(cfg.DBName)
 	utils.Must(err)
 
-	h := &handlers.Handler{Bot: bot, DB: db}
+	handlers.Register(bot.API, db)
 
-	_, err = scheduler.Start(h, db)
-	utils.Must(err)
-
-	updateConfig := tgbotapi.NewUpdate(0)
-	updateConfig.Timeout = 60
-
-	updates := bot.GetUpdatesChan(updateConfig)
-
-	for upd := range updates {
-		if upd.Message != nil {
-			h.HandleMessage(upd.Message)
-		}
-		if upd.CallbackQuery != nil {
-			h.HandleCallback(upd.CallbackQuery)
-		}
-	}
+	bot.Run()
 }

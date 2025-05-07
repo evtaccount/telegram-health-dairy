@@ -3,40 +3,13 @@ package handlers
 import (
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
-
-	"telegram-health-dairy/internal/models"
-	"telegram-health-dairy/internal/storage"
-	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 var timeRx = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
-
-const (
-	btnComplaints   = "Жалобы"
-	btnNoComplaints = "Нет жалоб"
-	btnAteNow       = "Поел"
-	btnAteAt        = "Поел в …"
-
-	btnChange = "Изменить"
-	btnCancel = "Отмена"
-
-	menuStats   = "Показать статистику"
-	menuMorning = "Задать время утреннего сообщения"
-	menuEvening = "Задать время вечернего сообщения"
-	menuTZ      = "Сменить часовой пояс"
-	menuClear   = "Очистить данные"
-
-	actionMorning = "Самочувствие утром"
-	actionEvening = "Ужин в ..."
-)
-
-type Handler struct {
-	Bot *tgbotapi.BotAPI
-	DB  *storage.DB
-}
 
 func (h *Handler) HandleMessage(msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
@@ -48,56 +21,33 @@ func (h *Handler) HandleMessage(msg *tgbotapi.Message) {
 	}
 }
 
-// --- morning / evening messages ----------
-func (h *Handler) SendMorning(u *models.User, dateKey string) error {
-	kb := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(btnComplaints, btnComplaints),
-			tgbotapi.NewInlineKeyboardButtonData(btnNoComplaints, btnNoComplaints),
-		),
-	)
+func (h *Handler) HandleText(msg *tgbotapi.Message) {
+	chatID := msg.Chat.ID
+	state, _ := h.DB.GetUserState(chatID)
+	if state == "" {
+		return
+	}
 
-	msg := tgbotapi.NewMessage(u.ChatID, "Доброе утро! Как самочувствие?")
-	msg.ReplyMarkup = kb
-	m, err := h.Bot.Send(msg)
-	utils.Must(err)
-
-	return h.DB.InsertPending(&models.PendingMessage{
-		ChatID:    u.ChatID,
-		DateKey:   dateKey,
-		Type:      "morning",
-		MsgID:     m.MessageID,
-		CreatedAt: time.Now().Unix(),
-	})
-}
-
-func (h *Handler) SendEvening(u *models.User, dateKey string) error {
-	hrs := hoursLeft(u)
-	txt := "Пора ужинать! До конца дня осталось " + strconv.Itoa(hrs) + " ч."
-	kb := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(btnAteNow, btnAteNow),
-			tgbotapi.NewInlineKeyboardButtonData(btnAteAt, btnAteAt),
-		),
-	)
-
-	msg := tgbotapi.NewMessage(u.ChatID, txt)
-	msg.ReplyMarkup = kb
-	m, err := h.Bot.Send(msg)
-	utils.Must(err)
-
-	return h.DB.InsertPending(&models.PendingMessage{
-		ChatID:    u.ChatID,
-		DateKey:   dateKey,
-		Type:      "evening",
-		MsgID:     m.MessageID,
-		CreatedAt: time.Now().Unix(),
-	})
-}
-
-func hoursLeft(u *models.User) int {
-	loc, _ := time.LoadLocation(u.TZ)
-	now := time.Now().In(loc)
-	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 0, 0, 0, loc)
-	return int(end.Sub(now).Hours())
+	switch {
+	case strings.HasPrefix(state, "wait_complaints:"):
+		dateKey := strings.TrimPrefix(state, "wait_complaints:")
+		_ = h.DB.UpsertDayRecord(chatID, dateKey[:10], msg.Text)
+		_ = h.DB.DeletePending(chatID, dateKey)
+		_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Жалобы записаны."))
+	case strings.HasPrefix(state, "wait_dinner_time:"):
+		if !timeRx.MatchString(msg.Text) {
+			_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Формат HH:MM"))
+			return
+		}
+		tparts := strings.Split(msg.Text, ":")
+		hStr, _ := strconv.Atoi(tparts[0])
+		mStr, _ := strconv.Atoi(tparts[1])
+		now := time.Now()
+		dt := time.Date(now.Year(), now.Month(), now.Day(), hStr, mStr, 0, 0, time.UTC)
+		dateKey := strings.TrimPrefix(state, "wait_dinner_time:")
+		_ = h.DB.SetDinner(chatID, dateKey[:10], dt)
+		_ = h.DB.DeletePending(chatID, dateKey)
+		_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Записал, спасибо!"))
+	}
+	_ = h.DB.SetUserState(chatID, "")
 }

@@ -6,6 +6,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const (
+	menuStats   = "Показать статистику"
+	menuMorning = "Задать время утреннего сообщения"
+	menuEvening = "Задать время вечернего сообщения"
+	menuTZ      = "Сменить часовой пояс"
+	menuClear   = "Очистить данные"
+
+	actionMorning = "Самочувствие утром"
+	actionEvening = "Ужин в ..."
+)
+
 func (h *Handler) HandleCommand(chatID int64, cmd string) {
 	switch cmd {
 	case "start":
