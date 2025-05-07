@@ -29,9 +29,9 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 		h.DB.ClearData(chatID)
 	}
 
-	if (st == models.StateNotStarted || st == models.StateInitial) && cmd != "start" && cmd != "help" {
+	if !validateInitialState(st, cmd) {
 		if st == models.StateInitial {
-			h.send(chatID, "Сначала подтвердите или измените настройки")
+			h.send(chatID, "Перед тем как продолжить работу с ботом, подтвердите настройки")
 		}
 		return
 	}
@@ -94,4 +94,15 @@ func (h *Handler) askConfirmDefaults(chatID int64) {
 	)
 	msg.ReplyMarkup = kb
 	h.Bot.Send(msg)
+}
+
+func validateInitialState(st models.State, cmd string) bool {
+	isInitialState := (st == models.StateNotStarted) || (st == models.StateInitial)
+	isAvailableForAll := cmd == "start" || cmd == "help"
+
+	if isInitialState && !isAvailableForAll {
+		return false
+	} else {
+		return true
+	}
 }
