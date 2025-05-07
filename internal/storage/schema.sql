@@ -32,3 +32,9 @@ CREATE TABLE IF NOT EXISTS user_states(
   chat_id INTEGER PRIMARY KEY,
   state TEXT
 );
+
+
+CREATE TABLE IF NOT EXISTS sessions (
+	chat_id INTEGER PRIMARY KEY,
+	state TEXT NOT NULL
+);

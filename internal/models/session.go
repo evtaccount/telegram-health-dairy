@@ -1,6 +1,6 @@
 package models
 
 type Session struct {
-	UserID int64
-	State  State
+	ChatID int64 `db:"chat_id"`
+	State  State `db:"state"`
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,6 +17,33 @@ import (
 var ddl embed.FS
 
 type DB struct{ *sql.DB }
+
+// ClearData полностью очищает все данные по пользователю
+func (d *DB) ClearData(chatID int64) error {
+	tx, err := d.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	tables := []string{
+		"day_records",
+		"pending_messages",
+		"user_states",
+		"sessions",
+		"users",
+	}
+	for _, tbl := range tables {
+		if _, err := tx.Exec(
+			fmt.Sprintf("DELETE FROM %s WHERE chat_id = ?", tbl),
+			chatID,
+		); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
 
 func New(path string) (*DB, error) {
 	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)")
@@ -179,4 +207,26 @@ func (d *DB) HasAnswered(chatID int64, dateKey string) bool {
 
 func (d *DB) HasPendingOrAnswered(chatID int64, dateKey string) bool {
 	return d.HasPending(chatID, dateKey) || d.HasAnswered(chatID, dateKey)
+}
+
+// Session state handling
+func (d *DB) SetSessionState(chatID int64, state models.State) error {
+	_, err := d.Exec(`
+		INSERT INTO sessions (chat_id, state)
+		VALUES (?, ?)
+		ON CONFLICT(chat_id) DO UPDATE SET state=excluded.state
+	`, chatID, state)
+	return err
+}
+
+func (d *DB) GetSessionState(chatID int64) (models.State, error) {
+	var state string
+	err := d.QueryRow(`SELECT state FROM sessions WHERE chat_id = ?`, chatID).Scan(&state)
+	if err == sql.ErrNoRows {
+		return models.StateNotStarted, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return models.State(state), nil
 }

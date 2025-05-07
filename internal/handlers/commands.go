@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"telegram-health-dairy/internal/models"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -12,68 +13,80 @@ const (
 	menuEvening = "Задать время вечернего сообщения"
 	menuTZ      = "Сменить часовой пояс"
 	menuClear   = "Очистить данные"
-
-	actionMorning = "Самочувствие утром"
-	actionEvening = "Ужин в ..."
 )
 
-func (h *Handler) HandleCommand(chatID int64, cmd string) {
+const (
+	cbCfgConfirm = "cfg_confirm"
+	cbCfgChange  = "cfg_change"
+)
+
+func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
+	chatID := msg.Chat.ID
+	cmd := msg.Command()
+	st, _ := h.DB.GetSessionState(chatID)
+	if (st == models.StateNotStarted || st == models.StateInitial) && cmd != "start" && cmd != "help" {
+		if st == models.StateInitial {
+			h.send(chatID, "Сначала подтвердите или измените настройки")
+		}
+		return
+	}
+
 	switch cmd {
 	case "start":
-		h.HandleStart(chatID)
-	case "settings":
-		h.HandleSettings(chatID)
+		h.handleStart(chatID)
+	case "help":
+		h.send(chatID, "/start — начать\n/help — справка")
+	default:
+		// main menu buttons
+		switch msg.Text {
+		case menuStats:
+			h.send(chatID, "Статистика пока не реализована")
+		case menuMorning:
+			_ = h.DB.SetUserState(chatID, "setup_morning")
+			h.send(chatID, "Введите время утреннего сообщения HH:MM")
+		case menuEvening:
+			_ = h.DB.SetUserState(chatID, "setup_evening")
+			h.send(chatID, "Введите время вечернего сообщения HH:MM")
+		case menuTZ:
+			_ = h.DB.SetUserState(chatID, "setup_timezone")
+			h.send(chatID, "Введите часовой пояс, например Europe/Moscow")
+		case menuClear:
+			_ = h.DB.ClearData(chatID)
+			h.send(chatID, "Данные очищены")
+		}
 	}
 }
 
-// ---------------- /start --------------------
-func (h *Handler) HandleStart(chatID int64) {
+func (h *Handler) handleStart(chatID int64) {
+	_ = h.ensureUser(chatID)
+	_ = h.DB.SetSessionState(chatID, models.StateInitial)
+	h.askConfirmDefaults(chatID)
+}
+
+// helpers
+func (h *Handler) ensureUser(chatID int64) error {
 	u, _ := h.DB.GetUser(chatID)
-
 	if u == nil {
-		// create with defaults
-		_ = h.DB.UpsertUser(&models.User{
-			ChatID:    chatID,
-			TZ:        "Europe/Moscow",
-			MorningAt: "10:00",
-			EveningAt: "18:00",
-		})
+		return h.DB.UpsertUser(&models.User{ChatID: chatID})
 	}
-
-	kb := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(actionMorning),
-		),
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(actionEvening),
-		),
-	)
-
-	reply := tgbotapi.NewMessage(chatID, "Главное меню")
-	reply.ReplyMarkup = kb
-	_, _ = h.Bot.Send(reply)
+	return nil
 }
 
-func (h *Handler) HandleSettings(chatID int64) {
+func (h *Handler) send(chatID int64, text string) {
+	h.Bot.Send(tgbotapi.NewMessage(chatID, text))
+}
+
+func (h *Handler) askConfirmDefaults(chatID int64) {
+	u, _ := h.DB.GetUser(chatID)
+	msg := tgbotapi.NewMessage(chatID,
+		fmt.Sprintf("Текущие настройки:\nУтро: %s\nВечер: %s\nTZ: %s",
+			u.MorningAt, u.EveningAt, u.TZ))
 	kb := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(menuStats, "show_stat"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(menuMorning, "setup_time_morning"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(menuEvening, "setup_time_evening"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(menuTZ, "setup_timezone"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(menuClear, "clear_stat"),
+			tgbotapi.NewInlineKeyboardButtonData("Подтвердить", cbCfgConfirm),
+			tgbotapi.NewInlineKeyboardButtonData("Изменить", cbCfgChange),
 		),
 	)
-
-	reply := tgbotapi.NewMessage(chatID, "Меню настроек")
-	reply.ReplyMarkup = kb
-	_, _ = h.Bot.Send(reply)
+	msg.ReplyMarkup = kb
+	h.Bot.Send(msg)
 }

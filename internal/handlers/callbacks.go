@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -12,60 +11,48 @@ const (
 	btnNoComplaints = "Нет жалоб"
 	btnAteNow       = "Поел"
 	btnAteAt        = "Поел в …"
-
-	btnChange = "Изменить"
-	btnCancel = "Отмена"
+	btnChange       = "Изменить"
+	btnCancel       = "Отмена"
 )
 
 func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
-	data := cq.Data
 	chatID := cq.Message.Chat.ID
-	dateKey := extractDateKey(cq.Message.Time(), data) // helper below
+	data := cq.Data
+	dateKey := extractDateKey(cq.Message.Time(), data)
 
-	switch data {
-	case btnComplaints, btnNoComplaints:
-		rec, _ := h.DB.GetDayRecord(chatID, dateKey[:10])
-		if rec != nil && rec.Complaints != "" {
-			// already answered -> ask confirmation
-			kb := tgbotapi.NewInlineKeyboardMarkup(
-				tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(btnChange, "chg:"+data),
-					tgbotapi.NewInlineKeyboardButtonData(btnCancel, btnCancel),
-				),
-			)
-			_, _ = h.Bot.Request(tgbotapi.NewEditMessageReplyMarkup(chatID, cq.Message.MessageID, kb))
-			return
-		}
-		if data == btnComplaints {
-			_ = h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
-			_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Опиши жалобы текстом"))
-		} else {
-			_ = h.DB.UpsertDayRecord(chatID, dateKey[:10], "")
-			_ = h.DB.DeletePending(chatID, dateKey)
-			_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Хорошего дня!"))
-		}
+	// always answer callback
+	_, _ = h.Bot.Request(tgbotapi.NewCallback(cq.ID, ""))
 
-	case btnAteNow:
-		now := time.Now()
-		_ = h.DB.SetDinner(chatID, dateKey[:10], now)
-		_ = h.DB.DeletePending(chatID, dateKey)
-		_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Приятного вечера!"))
+	switch {
+	case data == cbCfgConfirm:
+		h.DB.SetSessionState(chatID, "idle")
+		h.send(chatID, "Настройки сохранены! /menu")
+	case data == cbCfgChange:
+		h.DB.SetUserState(chatID, "setup_morning")
+		h.send(chatID, "Введите время утреннего сообщения HH:MM")
 
-	case btnAteAt:
-		_ = h.DB.SetUserState(chatID, "wait_dinner_time:"+dateKey)
-		_, _ = h.Bot.Send(tgbotapi.NewMessage(chatID, "Во сколько поужинал? (HH:MM)"))
-
-	case btnCancel:
-		h.Bot.Request(tgbotapi.NewCallback(cq.ID, "Отменено"))
+	case data == btnComplaints:
+		h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
+		h.send(chatID, "Опишите жалобы текстом")
+	case data == btnNoComplaints:
+		h.DB.UpsertDayRecord(chatID, dateKey[:10], "")
+		h.DB.DeletePending(chatID, dateKey)
+		h.send(chatID, "Хорошего дня!")
+	case data == btnAteNow:
+		h.DB.SetDinner(chatID, dateKey[:10], time.Now())
+		h.DB.DeletePending(chatID, dateKey)
+		h.send(chatID, "Приятного вечера!")
+	case data == btnAteAt:
+		h.DB.SetUserState(chatID, "wait_dinner:"+dateKey)
+		h.send(chatID, "Введите время ужина HH:MM")
+	default:
+		// ignore others
 	}
-
-	// always answer callback to remove 'loading...'
-	h.Bot.Request(tgbotapi.NewCallback(cq.ID, ""))
 }
 
-func extractDateKey(t time.Time, typ string) string {
+func extractDateKey(t time.Time, data string) string {
 	d := t.UTC().Format("2006-01-02")
-	if strings.HasPrefix(typ, "Жалоб") || strings.HasPrefix(typ, "chg:") {
+	if data == btnComplaints || data == btnNoComplaints {
 		return d + "-morning"
 	}
 	return d + "-evening"
