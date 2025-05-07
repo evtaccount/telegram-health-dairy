@@ -24,6 +24,11 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
 	cmd := msg.Command()
 	st, _ := h.DB.GetSessionState(chatID)
+
+	if cmd == "reset" {
+		h.DB.ClearData(chatID)
+	}
+
 	if (st == models.StateNotStarted || st == models.StateInitial) && cmd != "start" && cmd != "help" {
 		if st == models.StateInitial {
 			h.send(chatID, "Сначала подтвердите или измените настройки")
