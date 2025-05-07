@@ -81,7 +81,7 @@ func (h *Handler) ensureUser(chatID int64) error {
 	if user == nil {
 		return h.DB.UpsertUser(&models.User{
 			ChatID:    chatID,
-			TZ:        "Local",
+			TZ:        "Europe/Moscow",
 			MorningAt: "10:00",
 			EveningAt: "18:00",
 		})
