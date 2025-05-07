@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"telegram-health-dairy/internal/models"
 	"telegram-health-dairy/internal/utils"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -94,11 +95,14 @@ func (h *Handler) send(chatID int64, text string) {
 
 func (h *Handler) askConfirmDefaults(chatID int64) {
 	u, _ := h.DB.GetUser(chatID)
+	tzDisplay := gmtString(u.TZ)
 
-	msg := tgbotapi.NewMessage(
-		chatID,
-		fmt.Sprintf("Текущие настройки:\nУтро: %s\nВечер: %s\nTZ: %s", u.MorningAt, u.EveningAt, u.TZ),
+	text := fmt.Sprintf(
+		"Текущие настройки:\nУтро: %s\nВечер: %s\nЧасовой пояс: %s",
+		u.MorningAt, u.EveningAt, tzDisplay,
 	)
+
+	msg := tgbotapi.NewMessage(chatID, text)
 	kb := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Подтвердить", cbCfgConfirm),
@@ -118,4 +122,29 @@ func validateInitialState(st models.State, cmd string) bool {
 	} else {
 		return true
 	}
+}
+
+// gmtString возвращает строку вида "GMT+3", "GMT-05:30", "GMT".
+func gmtString(tz string) string {
+	// 1. Получаем location
+	loc, err := time.LoadLocation(tz)
+	if err != nil || tz == "Local" {
+		loc = time.Local
+	}
+	// 2. Сейчас в этой зоне
+	_, off := time.Now().In(loc).Zone() // offset в секундах
+	if off == 0 {
+		return "GMT"
+	}
+	sign := "+"
+	if off < 0 {
+		sign = "-"
+		off = -off
+	}
+	h := off / 3600
+	m := (off % 3600) / 60
+	if m == 0 {
+		return fmt.Sprintf("GMT%s%d", sign, h) // GMT+3
+	}
+	return fmt.Sprintf("GMT%s%02d:%02d", sign, h, m) // GMT-05:30
 }
