@@ -3,9 +3,11 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
+	"telegram-health-dairy/internal/utils"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -54,6 +56,7 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 		tz, err := validateTZ(msg.Text)
 
 		if err != nil {
+			utils.LogFor(err)
 			h.send(chatID, "Неверный TZ")
 			return
 		}
@@ -96,6 +99,7 @@ var offRx = regexp.MustCompile(`^(?i)(?:gmt|utc)?([+-]\d{1,2})(?::?(\d{2}))?$`)
 
 func validateTZ(input string) (string, error) {
 	tz, err := parseUserTZ(input)
+	log.Println(fmt.Printf("Parsed tz: %s", tz))
 
 	if err != nil {
 		return "", err
