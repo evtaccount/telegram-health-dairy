@@ -31,7 +31,7 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 
 	// Вторая минутная job для «допинывания»
 	_, _ = s.NewJob(
-		gocron.DurationJob(5*time.Minute),
+		gocron.DurationJob(1*time.Minute),
 		gocron.NewTask(func() {
 			rows, _ := db.Query(`SELECT chat_id FROM sessions
                              WHERE state IN ('waiting_morning','waiting_evening')`)
@@ -57,7 +57,12 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 	_, err = s.NewJob(
 		gocron.DurationJob(1*time.Minute),
 		gocron.NewTask(func() {
-			rows, err := db.Query(`SELECT chat_id, tz, morning_at, evening_at FROM users`)
+			rows, err := db.Query(`
+    			SELECT u.chat_id, u.tz, u.morning_at, u.evening_at
+    			FROM users AS u
+			    LEFT JOIN sessions AS s ON s.chat_id = u.chat_id
+    			WHERE COALESCE(s.state, 'idle') = 'idle'
+			`)
 			if err != nil {
 				return
 			}

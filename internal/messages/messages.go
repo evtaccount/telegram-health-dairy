@@ -11,34 +11,9 @@ import (
 )
 
 const (
-	btnComplaints   = "Жалобы"
-	btnNoComplaints = "Нет жалоб"
-	btnAteNow       = "Поел"
-	btnAteAt        = "Поел в …"
+	btnAteNow = "Поел"
+	btnAteAt  = "Поел в …"
 )
-
-// --- morning / evening messages ----------
-func SendMorning(bot *tgbotapi.BotAPI, db *storage.DB, u *models.User, dateKey string) error {
-	kb := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(btnComplaints, btnComplaints),
-			tgbotapi.NewInlineKeyboardButtonData(btnNoComplaints, btnNoComplaints),
-		),
-	)
-
-	msg := tgbotapi.NewMessage(u.ChatID, "Доброе утро! Как самочувствие?")
-	msg.ReplyMarkup = kb
-	m, err := bot.Send(msg)
-	utils.LogFor(err)
-
-	return db.InsertPending(&models.PendingMessage{
-		ChatID:    u.ChatID,
-		DateKey:   dateKey,
-		Type:      "morning",
-		MsgID:     m.MessageID,
-		CreatedAt: time.Now().Unix(),
-	})
-}
 
 func SendEvening(bot *tgbotapi.BotAPI, db *storage.DB, u *models.User, dateKey string) error {
 	hrs := hoursLeft(u)
