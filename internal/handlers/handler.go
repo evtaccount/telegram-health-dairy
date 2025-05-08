@@ -3,11 +3,19 @@ package handlers
 import (
 	"log"
 
+	"telegram-health-dairy/internal/models"
 	"telegram-health-dairy/internal/scheduler"
 	"telegram-health-dairy/internal/storage"
 	"telegram-health-dairy/internal/utils"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+const (
+	kbYesterdayDinner    = "Вчера ужинал в …"
+	kbTodayMorningStatus = "Самочувствие утром"
+	kbDinner             = "Ужинал в …"
+	kbPrevMorningStatus  = "Самочувствие прошлым утром"
 )
 
 type Handler struct {
@@ -45,6 +53,42 @@ func (h *Handler) listen() {
 			// === 📌 Обработка callback кнопок ===
 			h.HandleCallback(upd.CallbackQuery)
 		}
+	}
+}
+
+func (h *Handler) pushDayKeyboard(chatID int64) {
+	st, _ := h.DB.GetSessionState(chatID)
+	kb := buildDayKeyboard(st)
+
+	cfg := tgbotapi.NewMessage(chatID, "\u2063") // zero-width char
+	cfg.ReplyMarkup = kb
+	cfg.DisableNotification = true
+	_, _ = h.Bot.Send(cfg)
+}
+
+func buildDayKeyboard(st models.State) tgbotapi.ReplyKeyboardMarkup {
+	// пустая (но не nil) — Telegram умеет «прятать» клавиатуру,
+	// если в ней нет кнопок
+	empty := tgbotapi.NewReplyKeyboard()
+
+	switch st {
+	case models.StateWaitingMorning, models.StateIdle:
+		return tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.NewKeyboardButton(kbYesterdayDinner),
+				tgbotapi.NewKeyboardButton(kbTodayMorningStatus),
+			),
+		)
+
+	case models.StateWaitingEvening:
+		return tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.NewKeyboardButton(kbDinner),
+				tgbotapi.NewKeyboardButton(kbPrevMorningStatus),
+			),
+		)
+	default: // notStarted, Initial → скрыть
+		return empty
 	}
 }
 

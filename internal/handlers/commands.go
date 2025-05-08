@@ -90,7 +90,8 @@ func (h *Handler) handleStart(chatID int64) {
 		h.send(chatID, txt)
 	} else {
 		// 2. Первая активация или Initial-flow ещё не пройден
-		_ = h.DB.SetSessionState(chatID, models.StateInitial)
+		h.DB.SetSessionState(chatID, models.StateInitial)
+		h.pushDayKeyboard(chatID)
 		h.askConfirmDefaults(chatID)
 	}
 }

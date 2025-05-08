@@ -65,6 +65,7 @@ func (h *Handler) handleYes(chatID int64, msg *tgbotapi.Message) {
 	h.DB.UpsertDayRecord(chatID, dateKey[:10], userText)
 	h.DB.DeletePending(chatID, dateKey)
 	h.DB.SetSessionState(chatID, models.StateIdle)
+	h.pushDayKeyboard(chatID)
 	h.DB.SetUserState(chatID, "")
 
 	// благодарим
@@ -87,7 +88,8 @@ func (h *Handler) mustUserState(chatID int64) string {
 func (h *Handler) handleConfirmSettings(chatID int64) {
 	u, _ := h.DB.GetUser(chatID)
 	newState := calcCurrentState(u)
-	_ = h.DB.SetSessionState(chatID, newState)
+	h.DB.SetSessionState(chatID, newState)
+	h.pushDayKeyboard(chatID)
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
 
@@ -194,6 +196,7 @@ func (h *Handler) handleAteNow(chatID int64, dateKey string) {
 	h.DB.SetDinner(chatID, dateKey[:10], time.Now())
 	h.DB.DeletePending(chatID, dateKey)
 	h.DB.SetSessionState(chatID, models.StateIdle)
+	h.pushDayKeyboard(chatID)
 	h.send(chatID, "Приятного вечера!")
 }
 
