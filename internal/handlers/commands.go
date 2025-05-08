@@ -124,9 +124,12 @@ func validateInitialState(st models.State, cmd string) bool {
 	}
 }
 
-// gmtString("+03:00") → "GMT+3", gmtString("Europe/Riga") → "GMT+3"
 func gmtString(tz string) string {
-	loc, _ := tzToLocation(tz)
+	loc, err := tzToLocation(tz)
+	if err != nil || loc == nil { // fallback, чтобы не паниковать
+		return "GMT"
+	}
+
 	_, off := time.Now().In(loc).Zone()
 	if off == 0 {
 		return "GMT"
