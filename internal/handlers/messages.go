@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"telegram-health-dairy/internal/models"
 	"telegram-health-dairy/internal/utils"
 	"time"
 
@@ -73,11 +72,15 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 
 	case strings.HasPrefix(state, "wait_complaints:"):
 		dateKey := strings.TrimPrefix(state, "wait_complaints:")
-		h.DB.UpsertDayRecord(chatID, dateKey[:10], msg.Text)
-		h.DB.DeletePending(chatID, dateKey)
-		h.DB.SetUserState(chatID, "")
-		h.DB.SetSessionState(chatID, models.StateIdle)
-		h.send(chatID, "Жалобы сохранены!")
+
+		// 1) шлём сообщение-подтверждение реплаем на текст пользователя
+		confirm := tgbotapi.NewMessage(chatID, "Сохраняем текущий статус?")
+		confirm.ReplyToMessageID = msg.MessageID
+		confirm.ReplyMarkup = confirmKB
+		_, _ = h.Bot.Send(confirm)
+
+		// 2) переключаемся в состояние "confirm_complaints:DATE"
+		_ = h.DB.SetUserState(chatID, "confirm_complaints:"+dateKey)
 
 	case strings.HasPrefix(state, "wait_dinner:"):
 		if !timeRx.MatchString(msg.Text) {

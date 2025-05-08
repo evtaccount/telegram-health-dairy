@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"telegram-health-dairy/internal/models"
 	"time"
 
@@ -15,7 +16,16 @@ const (
 	btnAteNow       = "Поел"
 	btnAteAt        = "Поел в …"
 	btnChange       = "Изменить"
+	btnYes          = "Да"
 	btnCancel       = "Отмена"
+)
+
+// одна на весь пакет
+var confirmKB = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(btnYes, "cmp_yes"),
+		tgbotapi.NewInlineKeyboardButtonData(btnCancel, "cmp_cancel"),
+	),
 )
 
 // Клавиатура для утреннего вопроса
@@ -55,7 +65,37 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 		h.handleAteNow(chatID, dateKey)
 	case data == btnAteAt:
 		h.handleAteAt(chatID, dateKey)
+	case data == btnYes:
+		h.handleYes(chatID, cq.Message)
+	case data == btnCancel:
+		h.handleCancel(chatID)
 	}
+}
+
+func (h *Handler) handleYes(chatID int64, msg *tgbotapi.Message) {
+	// callback.Message.ReplyToMessage содержит исходный текст пользователя
+	userText := msg.ReplyToMessage.Text
+	dateKey := strings.TrimPrefix(h.mustUserState(chatID), "confirm_complaints:")
+	h.DB.UpsertDayRecord(chatID, dateKey[:10], userText)
+	h.DB.DeletePending(chatID, dateKey)
+	h.DB.SetSessionState(chatID, models.StateIdle)
+	h.DB.SetUserState(chatID, "")
+
+	// благодарим
+	h.Bot.Send(tgbotapi.NewMessage(chatID, "Спасибо — записал!"))
+}
+
+func (h *Handler) handleCancel(chatID int64) {
+	dateKey := strings.TrimPrefix(h.mustUserState(chatID), "confirm_complaints:")
+	// просим ввести текст заново
+	h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
+	h.Bot.Send(tgbotapi.NewMessage(chatID,
+		"Хорошо, введите состояние ещё раз текстом"))
+}
+
+func (h *Handler) mustUserState(chatID int64) string {
+	st, _ := h.DB.GetUserState(chatID)
+	return st
 }
 
 func (h *Handler) handleConfirmSettings(chatID int64) {
@@ -65,13 +105,13 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
 
-	h.showDebugAllPeriods(chatID, u, newState)
+	h.send(chatID, "Настройки сохранены!")
 
 	switch newState {
 	case models.StateWaitingMorning:
 		// шлём вопрос «Жалобы / Нет жалоб»
 		dateKey := today + "-morning"
-		msg := tgbotapi.NewMessage(chatID, "Настройки сохранены! Как самочувствие?")
+		msg := tgbotapi.NewMessage(chatID, "Как самочувствие?")
 		msg.ReplyMarkup = morningKB // inline-кнопки
 		sent, _ := h.Bot.Send(msg)
 
@@ -87,7 +127,7 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 	case models.StateWaitingEvening:
 		dateKey := today + "-evening"
 		hrsLeft := 23 - time.Now().Hour()
-		txt := "Настройки сохранены! Пора ужинать, до конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
+		txt := "Пора ужинать, до конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
 		msg := tgbotapi.NewMessage(chatID, txt)
 		msg.ReplyMarkup = eveningKB
 		sent, _ := h.Bot.Send(msg)
@@ -99,10 +139,9 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 			MsgID:     sent.MessageID,
 			CreatedAt: time.Now().Unix(),
 		})
-
-	default:
-		h.send(chatID, "Настройки сохранены!")
 	}
+
+	h.showDebugAllPeriods(chatID, u, newState)
 }
 
 func (h *Handler) showDebugAllPeriods(chatID int64, u *models.User, newState models.State) {

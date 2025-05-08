@@ -128,7 +128,7 @@ func (h *Handler) askConfirmDefaults(chatID int64) {
 
 func validateInitialState(st models.State, cmd string) bool {
 	isInitialState := (st == models.StateNotStarted) || (st == models.StateInitial)
-	isAvailableForAll := cmd == "start" || cmd == "help"
+	isAvailableForAll := cmd == "start" || cmd == "help" || cmd == "current_state"
 
 	if isInitialState && !isAvailableForAll {
 		return false
