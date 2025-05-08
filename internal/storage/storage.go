@@ -174,12 +174,49 @@ func (d *DB) GetDayRecord(chatID int64, day string) (*models.DayRecord, error) {
 
 // ---------- pending ---------------------------------------------------------
 
+// InsertPending: теперь инициализируем reminded_at = 0
 func (d *DB) InsertPending(p *models.PendingMessage) error {
 	_, err := d.Exec(`
-        INSERT OR IGNORE INTO pending_messages(chat_id, date_key, type, msg_id, created_at)
-        VALUES (?,?,?,?,?)`,
-		p.ChatID, p.DateKey, p.Type, p.MsgID, time.Now().Unix())
+        INSERT OR IGNORE INTO pending_messages
+          (chat_id, date_key, type, msg_id, created_at, reminded_at)
+        VALUES (?,?,?,?,?,0)
+    `, p.ChatID, p.DateKey, p.Type, p.MsgID, time.Now().Unix())
 	return err
+}
+
+// ListPendingForReminder возвращает pending’и, которым пора напомнить
+// (прошло ≥ 1200 сек и пользователь ещё не ответил)
+func (d *DB) ListPendingForReminder(chatID int64) ([]models.PendingMessage, error) {
+	rows, err := d.Query(`
+        SELECT id, chat_id, date_key, type, msg_id, created_at, reminded_at
+        FROM pending_messages
+        WHERE chat_id = ?
+          AND reminded_at < strftime('%s','now') - 1200
+    `, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.PendingMessage
+	for rows.Next() {
+		var p models.PendingMessage
+		if err := rows.Scan(
+			&p.ID, &p.ChatID, &p.DateKey, &p.Type, &p.MsgID,
+			&p.CreatedAt, &p.RemindedAt,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, p)
+	}
+	return res, nil
+}
+
+// TouchReminder помечает, что напоминание отправлено (обновляет reminded_at)
+func (d *DB) TouchReminder(id int64) {
+	_, _ = d.Exec(`UPDATE pending_messages
+	               SET reminded_at = strftime('%s','now')
+	               WHERE id = ?`, id)
 }
 
 func (d *DB) DeletePending(chatID int64, dateKey string) error {

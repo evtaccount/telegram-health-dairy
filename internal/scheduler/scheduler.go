@@ -36,6 +36,31 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 		return nil, err
 	}
 
+	// Вторая минутная job для «допинывания»
+	_, _ = s.NewJob(
+		gocron.DurationJob(1*time.Minute),
+		gocron.NewTask(func() {
+			rows, _ := db.Query(`SELECT chat_id FROM sessions
+                             WHERE state IN ('waiting_morning','waiting_evening')`)
+			defer rows.Close()
+
+			for rows.Next() {
+				var chatID int64
+				rows.Scan(&chatID)
+
+				pendings, _ := db.ListPendingForReminder(chatID)
+				for _, p := range pendings {
+					txt := "Не забудь ответить 🙂"
+					reply := tgbotapi.NewMessage(chatID, txt)
+					reply.ReplyToMessageID = p.MsgID
+					bot.Send(reply)
+
+					db.TouchReminder(p.ID)
+				}
+			}
+		}),
+	)
+
 	_, err = s.NewJob(
 		gocron.DurationJob(1*time.Minute),
 		gocron.NewTask(func() {

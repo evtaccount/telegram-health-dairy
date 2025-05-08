@@ -23,12 +23,13 @@ type DayRecord struct {
 
 // PendingMessage tracks messages waiting for reply.
 type PendingMessage struct {
-	ID        int64  `db:"id"`
-	ChatID    int64  `db:"chat_id"`
-	DateKey   string `db:"date_key"` // 2025-05-04-morning
-	Type      string `db:"type"`     // morning | evening
-	MsgID     int    `db:"msg_id"`
-	CreatedAt int64  `db:"created_at"`
+	ID         int64  `db:"id"`
+	ChatID     int64  `db:"chat_id"`
+	DateKey    string `db:"date_key"`    // 2025-05-08-morning / …-evening
+	Type       string `db:"type"`        // "morning" либо "evening"
+	MsgID      int    `db:"msg_id"`      // ID исходного сообщения-вопроса
+	CreatedAt  int64  `db:"created_at"`  // когда вопрос был отправлен
+	RemindedAt int64  `db:"reminded_at"` // когда в последний раз напомнили (0 = ещё не напоминали)
 }
 
 // UserState stores transient FSM states (waiting text input)

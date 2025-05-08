@@ -1,5 +1,8 @@
 PRAGMA foreign_keys = ON;
 
+ALTER TABLE pending_messages
+    ADD COLUMN reminded_at INTEGER NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   chat_id    INTEGER UNIQUE,
