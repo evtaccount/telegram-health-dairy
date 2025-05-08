@@ -26,14 +26,6 @@ var confirmKB = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
-// inline‑кнопки
-var morningKB = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Жалобы", "Жалобы"),
-		tgbotapi.NewInlineKeyboardButtonData("Нет жалоб", "Нет жалоб"),
-	),
-)
-
 // Клавиатура для вечернего вопроса
 var eveningKB = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
@@ -105,8 +97,7 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 	case models.StateWaitingMorning:
 		// шлём вопрос «Жалобы / Нет жалоб»
 		dateKey := today + "-morning"
-		msg := tgbotapi.NewMessage(chatID, "Как самочувствие?")
-		msg.ReplyMarkup = morningKB // inline-кнопки
+		msg := tgbotapi.NewMessage(chatID, "Доброе утро! Опишите своё самочувствие")
 		sent, _ := h.Bot.Send(msg)
 
 		// записываем pending + 0 reminded_at

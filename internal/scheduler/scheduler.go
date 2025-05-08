@@ -14,13 +14,6 @@ import (
 	"telegram-health-dairy/internal/storage"
 )
 
-// inline‑кнопки
-var morningKB = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Жалобы", "Жалобы"),
-		tgbotapi.NewInlineKeyboardButtonData("Нет жалоб", "Нет жалоб"),
-	),
-)
 var eveningKB = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("Поел", "Поел"),
@@ -38,7 +31,7 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 
 	// Вторая минутная job для «допинывания»
 	_, _ = s.NewJob(
-		gocron.DurationJob(1*time.Minute),
+		gocron.DurationJob(5*time.Minute),
 		gocron.NewTask(func() {
 			rows, _ := db.Query(`SELECT chat_id FROM sessions
                              WHERE state IN ('waiting_morning','waiting_evening')`)
@@ -87,8 +80,7 @@ func Start(bot *tgbotapi.BotAPI, db *storage.DB) (gocron.Scheduler, error) {
 				if now.Format("15:04") == morning {
 					key := day + "-morning"
 					if !db.HasPending(chatID, key) {
-						msg := tgbotapi.NewMessage(chatID, "Доброе утро! Как самочувствие?")
-						msg.ReplyMarkup = morningKB
+						msg := tgbotapi.NewMessage(chatID, "Доброе утро! Опишите своё самочувствие")
 						sent, _ := bot.Send(msg)
 
 						db.InsertPending(&models.PendingMessage{

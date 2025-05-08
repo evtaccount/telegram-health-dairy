@@ -11,6 +11,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/models"
 )
 
@@ -21,7 +22,7 @@ type DB struct{ *sql.DB }
 
 func (d *DB) DropAll() error {
 	d.Close()
-	return os.Remove("bot.db")
+	return os.Remove(config.DBName)
 }
 
 // ClearData полностью очищает все данные по пользователю

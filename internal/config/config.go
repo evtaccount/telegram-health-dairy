@@ -34,6 +34,6 @@ func getBotToken() string {
 }
 
 const (
-	DBName = "bot.db"
-	logDir = "./logs"
+	DBName = "/root/data/bot.db"
+	logDir = ".root/logs"
 )
