@@ -45,6 +45,8 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 	switch cmd {
 	case "start":
 		h.handleStart(chatID)
+	case "current_state":
+		h.handleCurrentState(chatID)
 	case "help":
 		h.send(chatID, "/start — начать\n/help — справка")
 	default:
@@ -91,6 +93,13 @@ func (h *Handler) ensureUser(chatID int64) error {
 		})
 	}
 	return nil
+}
+
+func (h *Handler) handleCurrentState(chatID int64) {
+	u, _ := h.DB.GetUser(chatID)
+	state := calcCurrentState(u)
+	msg := "Текущий статус: " + string(state)
+	h.send(chatID, msg)
 }
 
 func (h *Handler) send(chatID int64, text string) {

@@ -60,7 +60,7 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 
 func (h *Handler) handleConfirmSettings(chatID int64) {
 	u, _ := h.DB.GetUser(chatID)
-	newState := calcNextState(u)
+	newState := calcCurrentState(u)
 	_ = h.DB.SetSessionState(chatID, newState)
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
@@ -148,7 +148,7 @@ func (h *Handler) showDebugAllPeriods(chatID int64, u *models.User, newState mod
 	debug := fmt.Sprintf(
 		"Текущий стейт: %s\n"+
 			"UTC: %s\n"+
-			"Локальное время: %s\n\n (%s)"+
+			"Локальное время: %s (%s)\n\n"+
 			"Окно \"утро\": %s — %s\n"+
 			"Окно \"вечер\": %s — %s\n\n"+
 			"След. событие: %s (через %v)",
@@ -193,7 +193,7 @@ func (h *Handler) handleAteAt(chatID int64, dateKey string) {
 }
 
 // внутри handlers/callbacks.go или рядом
-func calcNextState(u *models.User) models.State {
+func calcCurrentState(u *models.User) models.State {
 	loc, _ := tzToLocation(u.TZ) // IANA или +03:00 → *time.Location
 	now := time.Now().In(loc)
 
