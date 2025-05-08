@@ -47,6 +47,8 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 		h.handleStart(chatID)
 	case "current_state":
 		h.handleCurrentState(chatID)
+	case "settings":
+		h.handleSettings(chatID)
 	case "help":
 		h.send(chatID, "/start — начать\n/help — справка")
 	default:
@@ -74,10 +76,23 @@ func (h *Handler) handleStart(chatID int64) {
 	err := h.ensureUser(chatID)
 	utils.LogFor(err)
 
-	err = h.DB.SetSessionState(chatID, models.StateInitial)
+	st, err := h.DB.GetSessionState(chatID)
 	utils.LogFor(err)
 
-	h.askConfirmDefaults(chatID)
+	// 1. Бот уже запущен и НЕ в Initial-flow  → просто сообщаем состояние.
+	if st != models.StateNotStarted && st != models.StateInitial {
+		txt := fmt.Sprintf(
+			"Бот уже запущен.\n"+
+				"Текущий стейт: %s\n\n"+
+				"Если хотите изменить настройки, отправьте /settings",
+			st,
+		)
+		h.send(chatID, txt)
+	} else {
+		// 2. Первая активация или Initial-flow ещё не пройден
+		_ = h.DB.SetSessionState(chatID, models.StateInitial)
+		h.askConfirmDefaults(chatID)
+	}
 }
 
 // helpers
@@ -101,6 +116,27 @@ func (h *Handler) handleCurrentState(chatID int64) {
 	state := calcCurrentState(u)
 	msg := "Текущий статус: " + string(state)
 	h.send(chatID, msg)
+}
+
+func (h *Handler) handleSettings(chatID int64) {
+	u, _ := h.DB.GetUser(chatID)
+	tzDisplay := gmtString(u.TZ)
+
+	text := fmt.Sprintf(
+		"Текущие настройки:\nУтро: %s\nВечер: %s\nЧасовой пояс: %s",
+		u.MorningAt, u.EveningAt, tzDisplay,
+	)
+
+	msg := tgbotapi.NewMessage(chatID, text)
+	kb := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Изменить", cbCfgChange),
+			tgbotapi.NewInlineKeyboardButtonData("Отмена", btnCancel),
+		),
+	)
+
+	msg.ReplyMarkup = kb
+	h.Bot.Send(msg)
 }
 
 func (h *Handler) send(chatID int64, text string) {
