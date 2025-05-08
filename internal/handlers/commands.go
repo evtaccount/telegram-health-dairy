@@ -96,6 +96,7 @@ func (h *Handler) ensureUser(chatID int64) error {
 }
 
 func (h *Handler) handleCurrentState(chatID int64) {
+	_ = h.ensureUser(chatID)
 	u, _ := h.DB.GetUser(chatID)
 	state := calcCurrentState(u)
 	msg := "Текущий статус: " + string(state)

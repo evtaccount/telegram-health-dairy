@@ -233,6 +233,9 @@ func (h *Handler) handleAteAt(chatID int64, dateKey string) {
 
 // внутри handlers/callbacks.go или рядом
 func calcCurrentState(u *models.User) models.State {
+	if u == nil { // ← 1. защита от nil
+		return models.StateNotStarted //   или Idle — как удобнее
+	}
 	loc, _ := tzToLocation(u.TZ) // IANA или +03:00 → *time.Location
 	now := time.Now().In(loc)
 
