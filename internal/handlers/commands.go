@@ -79,8 +79,13 @@ func (h *Handler) handleStart(chatID int64) {
 	st, err := h.DB.GetSessionState(chatID)
 	utils.LogFor(err)
 
-	// 1. Бот уже запущен и НЕ в Initial-flow  → просто сообщаем состояние.
-	if st != models.StateNotStarted && st != models.StateInitial {
+	if st == models.StateNotStarted || st == models.StateInitial {
+		// 1. Первая активация или Initial-flow ещё не пройден
+		h.DB.SetSessionState(chatID, models.StateInitial)
+		h.pushDayKeyboard(chatID)
+		h.askConfirmDefaults(chatID)
+	} else {
+		// 2. Бот уже запущен и НЕ в Initial-flow  → просто сообщаем состояние.
 		txt := fmt.Sprintf(
 			"Бот уже запущен.\n"+
 				"Текущий стейт: %s\n\n"+
@@ -88,11 +93,6 @@ func (h *Handler) handleStart(chatID int64) {
 			st,
 		)
 		h.send(chatID, txt)
-	} else {
-		// 2. Первая активация или Initial-flow ещё не пройден
-		h.DB.SetSessionState(chatID, models.StateInitial)
-		h.pushDayKeyboard(chatID)
-		h.askConfirmDefaults(chatID)
 	}
 }
 
