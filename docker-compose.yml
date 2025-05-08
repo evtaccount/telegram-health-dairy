@@ -8,4 +8,5 @@ services:
     volumes:
       - ./data:/root/data
       - ./logs:/root/logs
+      - ./bot.db:/app/bot.db
     restart: always
