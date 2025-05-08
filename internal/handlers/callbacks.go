@@ -11,13 +11,11 @@ import (
 )
 
 const (
-	btnComplaints   = "Жалобы"
-	btnNoComplaints = "Нет жалоб"
-	btnAteNow       = "Поел"
-	btnAteAt        = "Поел в …"
-	btnChange       = "Изменить"
-	btnYes          = "Да"
-	btnCancel       = "Отмена"
+	btnAteNow = "Поел"
+	btnAteAt  = "Поел в …"
+	btnChange = "Изменить"
+	btnYes    = "Да"
+	btnCancel = "Отмена"
 )
 
 // одна на весь пакет
@@ -25,14 +23,6 @@ var confirmKB = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData(btnYes, "cmp_yes"),
 		tgbotapi.NewInlineKeyboardButtonData(btnCancel, "cmp_cancel"),
-	),
-)
-
-// Клавиатура для утреннего вопроса
-var morningKB = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData(btnComplaints, btnComplaints),
-		tgbotapi.NewInlineKeyboardButtonData(btnNoComplaints, btnNoComplaints),
 	),
 )
 
@@ -57,10 +47,6 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 		h.handleConfirmSettings(chatID)
 	case data == cbCfgChange:
 		h.handleChangeSettings(chatID)
-	case data == btnComplaints:
-		h.handleComplaints(chatID, dateKey)
-	case data == btnNoComplaints:
-		h.handleNoComplaints(chatID, dateKey)
 	case data == btnAteNow:
 		h.handleAteNow(chatID, dateKey)
 	case data == btnAteAt:
@@ -117,11 +103,10 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 
 		// записываем pending + 0 reminded_at
 		h.DB.InsertPending(&models.PendingMessage{
-			ChatID:    chatID,
-			DateKey:   dateKey,
-			Type:      "morning",
-			MsgID:     sent.MessageID,
-			CreatedAt: time.Now().Unix(),
+			ChatID:  chatID,
+			DateKey: dateKey,
+			Type:    "morning",
+			MsgID:   sent.MessageID,
 		})
 
 	case models.StateWaitingEvening:
@@ -133,11 +118,10 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 		sent, _ := h.Bot.Send(msg)
 
 		h.DB.InsertPending(&models.PendingMessage{
-			ChatID:    chatID,
-			DateKey:   dateKey,
-			Type:      "evening",
-			MsgID:     sent.MessageID,
-			CreatedAt: time.Now().Unix(),
+			ChatID:  chatID,
+			DateKey: dateKey,
+			Type:    "evening",
+			MsgID:   sent.MessageID,
 		})
 	}
 
@@ -205,18 +189,6 @@ func (h *Handler) showDebugAllPeriods(chatID int64, u *models.User, newState mod
 func (h *Handler) handleChangeSettings(chatID int64) {
 	h.DB.SetUserState(chatID, "setup_morning")
 	h.send(chatID, "Введите время утреннего сообщения HH:MM")
-}
-
-func (h *Handler) handleComplaints(chatID int64, dateKey string) {
-	h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
-	h.send(chatID, "Опишите жалобы текстом")
-}
-
-func (h *Handler) handleNoComplaints(chatID int64, dateKey string) {
-	h.DB.UpsertDayRecord(chatID, dateKey[:10], "")
-	h.DB.DeletePending(chatID, dateKey)
-	h.DB.SetSessionState(chatID, models.StateIdle)
-	h.send(chatID, "Хорошего дня!")
 }
 
 func (h *Handler) handleAteNow(chatID int64, dateKey string) {

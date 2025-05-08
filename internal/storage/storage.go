@@ -176,11 +176,20 @@ func (d *DB) GetDayRecord(chatID int64, day string) (*models.DayRecord, error) {
 
 // InsertPending: теперь инициализируем reminded_at = 0
 func (d *DB) InsertPending(p *models.PendingMessage) error {
+	now := time.Now().Unix()
+
+	if p.CreatedAt == 0 {
+		p.CreatedAt = now
+	}
+	if p.RemindedAt == 0 {
+		p.RemindedAt = now // ← СРАЗУ = время отправки вопроса
+	}
+
 	_, err := d.Exec(`
-        INSERT OR IGNORE INTO pending_messages
+        INSERT OR REPLACE INTO pending_messages
           (chat_id, date_key, type, msg_id, created_at, reminded_at)
-        VALUES (?,?,?,?,?,0)
-    `, p.ChatID, p.DateKey, p.Type, p.MsgID, time.Now().Unix())
+        VALUES (?,?,?,?,?,?)
+    `, p.ChatID, p.DateKey, p.Type, p.MsgID, p.CreatedAt, p.RemindedAt)
 	return err
 }
 
