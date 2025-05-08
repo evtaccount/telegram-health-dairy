@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 	"telegram-health-dairy/internal/models"
 	"time"
@@ -64,8 +65,7 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
 
-	debugState := "Текущий стейт: " + string(newState)
-	h.send(chatID, debugState)
+	h.showDebugAllPeriods(chatID, u, newState)
 
 	switch newState {
 	case models.StateWaitingMorning:
@@ -103,6 +103,64 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 	default:
 		h.send(chatID, "Настройки сохранены!")
 	}
+}
+
+func (h *Handler) showDebugAllPeriods(chatID int64, u *models.User, newState models.State) {
+	// helper: HH:MM → time.Time, привязанный к сегодняшней дате в loc
+	parseHM := func(hm string, loc *time.Location) time.Time {
+		t, _ := time.ParseInLocation("15:04", hm, loc)
+		now := time.Now().In(loc)
+		return time.Date(now.Year(), now.Month(), now.Day(),
+			t.Hour(), t.Minute(), 0, 0, loc)
+	}
+
+	loc, _ := tzToLocation(u.TZ) // IANA или +03:00
+	nowLocal := time.Now().In(loc)
+
+	morningStart := parseHM(u.MorningAt, loc)
+	morningEnd := morningStart.Add(2 * time.Hour)
+	eveningStart := parseHM(u.EveningAt, loc)
+	eveningEnd := eveningStart.Add(2 * time.Hour)
+
+	// вычислим «следующее событие»
+	var nextName string
+	var nextIn time.Duration
+
+	switch {
+	case nowLocal.Before(morningStart):
+		nextName = "утреннее окно"
+		nextIn = morningStart.Sub(nowLocal)
+	case nowLocal.Before(morningEnd):
+		nextName = "конец утреннего окна"
+		nextIn = morningEnd.Sub(nowLocal)
+	case nowLocal.Before(eveningStart):
+		nextName = "вечернее окно"
+		nextIn = eveningStart.Sub(nowLocal)
+	case nowLocal.Before(eveningEnd):
+		nextName = "конец вечернего окна"
+		nextIn = eveningEnd.Sub(nowLocal)
+	default:
+		// уже после eveningEnd — следующее утро завтра
+		nextName = "завтрашнее утро"
+		nextIn = morningStart.Add(24 * time.Hour).Sub(nowLocal)
+	}
+
+	debug := fmt.Sprintf(
+		"Текущий стейт: %s\n"+
+			"UTC: %s\n"+
+			"Локальное (%s): %s\n\n"+
+			"Окно утро   : %s — %s\n"+
+			"Окно вечер  : %s — %s\n\n"+
+			"След. событие: %s (через %v)",
+		newState,
+		time.Now().UTC().Format("15:04:05"),
+		u.TZ, nowLocal.Format("15:04:05"),
+		morningStart.Format("15:04"), morningEnd.Format("15:04"),
+		eveningStart.Format("15:04"), eveningEnd.Format("15:04"),
+		nextName, nextIn.Round(time.Minute),
+	)
+
+	h.send(chatID, debug)
 }
 
 func (h *Handler) handleChangeSettings(chatID int64) {
