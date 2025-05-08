@@ -26,6 +26,14 @@ var confirmKB = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
+// inline‑кнопки
+var morningKB = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Жалобы", "Жалобы"),
+		tgbotapi.NewInlineKeyboardButtonData("Нет жалоб", "Нет жалоб"),
+	),
+)
+
 // Клавиатура для вечернего вопроса
 var eveningKB = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
@@ -235,9 +243,16 @@ func calcCurrentState(u *models.User) models.State {
 }
 
 func extractDateKey(t time.Time, data string) string {
-	d := t.UTC().Format("2006-01-02")
-	if data == btnComplaints || data == btnNoComplaints {
-		return d + "-morning"
+	day := t.UTC().Format("2006-01-02")
+
+	// всё, что связано с ужином, считаем evening
+	switch data {
+	case btnAteNow, btnAteAt: // «Поел» / «Поел в …»
+		return day + "-evening"
+	case "cmp_dinner_yes", "cmp_dinner_cancel":
+		return day + "-evening"
 	}
-	return d + "-evening"
+
+	// остальное относится к утру (жалобы, cmp_yes/cancel)
+	return day + "-morning"
 }
