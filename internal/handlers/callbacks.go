@@ -43,7 +43,7 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 
 	switch {
 	case data == cbCfgConfirm:
-		h.handleConfirmSettings(chatID, data)
+		h.handleConfirmSettings(chatID)
 	case data == cbCfgChange:
 		h.handleChangeSettings(chatID)
 	case data == btnComplaints:
@@ -57,12 +57,10 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 	}
 }
 
-func (h *Handler) handleConfirmSettings(chatID int64, data string) {
+func (h *Handler) handleConfirmSettings(chatID int64) {
 	u, _ := h.DB.GetUser(chatID)
 	newState := calcNextState(u)
 	_ = h.DB.SetSessionState(chatID, newState)
-
-	h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
 
@@ -70,7 +68,7 @@ func (h *Handler) handleConfirmSettings(chatID int64, data string) {
 	case models.StateWaitingMorning:
 		// шлём вопрос «Жалобы / Нет жалоб»
 		dateKey := today + "-morning"
-		msg := tgbotapi.NewMessage(chatID, "Доброе утро! Как самочувствие?")
+		msg := tgbotapi.NewMessage(chatID, "Настройки сохранены! Как самочувствие?")
 		msg.ReplyMarkup = morningKB // inline-кнопки
 		sent, _ := h.Bot.Send(msg)
 
@@ -86,7 +84,7 @@ func (h *Handler) handleConfirmSettings(chatID int64, data string) {
 	case models.StateWaitingEvening:
 		dateKey := today + "-evening"
 		hrsLeft := 23 - time.Now().Hour()
-		txt := "Пора ужинать! До конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
+		txt := "Настройки сохранены! Пора ужинать, до конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
 		msg := tgbotapi.NewMessage(chatID, txt)
 		msg.ReplyMarkup = eveningKB
 		sent, _ := h.Bot.Send(msg)
@@ -98,6 +96,9 @@ func (h *Handler) handleConfirmSettings(chatID int64, data string) {
 			MsgID:     sent.MessageID,
 			CreatedAt: time.Now().Unix(),
 		})
+
+	default:
+		h.send(chatID, "Настройки сохранены!")
 	}
 }
 

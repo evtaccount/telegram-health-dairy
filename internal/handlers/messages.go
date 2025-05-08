@@ -72,6 +72,8 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 		h.DB.SetSessionState(chatID, "idle")
 		h.send(chatID, "Настройки сохранены!")
 
+		h.handleConfirmSettings(chatID)
+
 	case strings.HasPrefix(state, "wait_complaints:"):
 		dateKey := strings.TrimPrefix(state, "wait_complaints:")
 		h.DB.UpsertDayRecord(chatID, dateKey[:10], msg.Text)
