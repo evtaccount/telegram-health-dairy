@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +18,11 @@ import (
 var ddl embed.FS
 
 type DB struct{ *sql.DB }
+
+func (d *DB) DropAll() error {
+	d.Close()
+	return os.Remove("bot.db")
+}
 
 // ClearData полностью очищает все данные по пользователю
 func (d *DB) ClearData(chatID int64) error {

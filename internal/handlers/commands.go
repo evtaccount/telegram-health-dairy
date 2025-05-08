@@ -28,7 +28,8 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 	st, _ := h.DB.GetSessionState(chatID)
 
 	if cmd == "reset" {
-		h.DB.ClearData(chatID)
+		_ = h.DB.DropAll()
+		h.send(chatID, "Данные очищены")
 	}
 
 	if !validateInitialState(st, cmd) {
