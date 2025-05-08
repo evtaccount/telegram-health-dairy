@@ -43,74 +43,91 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 
 	switch {
 	case data == cbCfgConfirm:
-		u, _ := h.DB.GetUser(chatID)
-		newState := calcNextState(u)
-		_ = h.DB.SetSessionState(chatID, newState)
-
-		today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
-
-		switch newState {
-
-		case models.StateWaitingMorning:
-			// шлём вопрос «Жалобы / Нет жалоб»
-			dateKey := today + "-morning"
-			msg := tgbotapi.NewMessage(chatID, "Доброе утро! Как самочувствие?")
-			msg.ReplyMarkup = morningKB // inline-кнопки
-			sent, _ := h.Bot.Send(msg)
-
-			// записываем pending + 0 reminded_at
-			h.DB.InsertPending(&models.PendingMessage{
-				ChatID:    chatID,
-				DateKey:   dateKey,
-				Type:      "morning",
-				MsgID:     sent.MessageID,
-				CreatedAt: time.Now().Unix(),
-			})
-			h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
-
-		case models.StateWaitingEvening:
-			dateKey := today + "-evening"
-			hrsLeft := 23 - time.Now().Hour()
-			txt := "Пора ужинать! До конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
-			msg := tgbotapi.NewMessage(chatID, txt)
-			msg.ReplyMarkup = eveningKB
-			sent, _ := h.Bot.Send(msg)
-
-			h.DB.InsertPending(&models.PendingMessage{
-				ChatID:    chatID,
-				DateKey:   dateKey,
-				Type:      "evening",
-				MsgID:     sent.MessageID,
-				CreatedAt: time.Now().Unix(),
-			})
-			h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
-
-		default: // idle
-			h.send(chatID, "Настройки сохранены!\n\n/menu")
-		}
+		h.handleConfirmSettings(chatID, data)
 	case data == cbCfgChange:
-		h.DB.SetUserState(chatID, "setup_morning")
-		h.send(chatID, "Введите время утреннего сообщения HH:MM")
-
+		h.handleChangeSettings(chatID)
 	case data == btnComplaints:
-		h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
-		h.send(chatID, "Опишите жалобы текстом")
+		h.handleComplaints(chatID, dateKey)
 	case data == btnNoComplaints:
-		h.DB.UpsertDayRecord(chatID, dateKey[:10], "")
-		h.DB.DeletePending(chatID, dateKey)
-		h.DB.SetSessionState(chatID, models.StateIdle)
-		h.send(chatID, "Хорошего дня!")
+		h.handleNoComplaints(chatID, dateKey)
 	case data == btnAteNow:
-		h.DB.SetDinner(chatID, dateKey[:10], time.Now())
-		h.DB.DeletePending(chatID, dateKey)
-		h.DB.SetSessionState(chatID, models.StateIdle)
-		h.send(chatID, "Приятного вечера!")
+		h.handleAteNow(chatID, dateKey)
 	case data == btnAteAt:
-		h.DB.SetUserState(chatID, "wait_dinner:"+dateKey)
-		h.send(chatID, "Введите время ужина HH:MM")
-	default:
-		// ignore others
+		h.handleAteAt(chatID, dateKey)
 	}
+}
+
+func (h *Handler) handleConfirmSettings(chatID int64, data string) {
+	u, _ := h.DB.GetUser(chatID)
+	newState := calcNextState(u)
+	_ = h.DB.SetSessionState(chatID, newState)
+
+	h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
+
+	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
+
+	switch newState {
+	case models.StateWaitingMorning:
+		// шлём вопрос «Жалобы / Нет жалоб»
+		dateKey := today + "-morning"
+		msg := tgbotapi.NewMessage(chatID, "Доброе утро! Как самочувствие?")
+		msg.ReplyMarkup = morningKB // inline-кнопки
+		sent, _ := h.Bot.Send(msg)
+
+		// записываем pending + 0 reminded_at
+		h.DB.InsertPending(&models.PendingMessage{
+			ChatID:    chatID,
+			DateKey:   dateKey,
+			Type:      "morning",
+			MsgID:     sent.MessageID,
+			CreatedAt: time.Now().Unix(),
+		})
+
+	case models.StateWaitingEvening:
+		dateKey := today + "-evening"
+		hrsLeft := 23 - time.Now().Hour()
+		txt := "Пора ужинать! До конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
+		msg := tgbotapi.NewMessage(chatID, txt)
+		msg.ReplyMarkup = eveningKB
+		sent, _ := h.Bot.Send(msg)
+
+		h.DB.InsertPending(&models.PendingMessage{
+			ChatID:    chatID,
+			DateKey:   dateKey,
+			Type:      "evening",
+			MsgID:     sent.MessageID,
+			CreatedAt: time.Now().Unix(),
+		})
+	}
+}
+
+func (h *Handler) handleChangeSettings(chatID int64) {
+	h.DB.SetUserState(chatID, "setup_morning")
+	h.send(chatID, "Введите время утреннего сообщения HH:MM")
+}
+
+func (h *Handler) handleComplaints(chatID int64, dateKey string) {
+	h.DB.SetUserState(chatID, "wait_complaints:"+dateKey)
+	h.send(chatID, "Опишите жалобы текстом")
+}
+
+func (h *Handler) handleNoComplaints(chatID int64, dateKey string) {
+	h.DB.UpsertDayRecord(chatID, dateKey[:10], "")
+	h.DB.DeletePending(chatID, dateKey)
+	h.DB.SetSessionState(chatID, models.StateIdle)
+	h.send(chatID, "Хорошего дня!")
+}
+
+func (h *Handler) handleAteNow(chatID int64, dateKey string) {
+	h.DB.SetDinner(chatID, dateKey[:10], time.Now())
+	h.DB.DeletePending(chatID, dateKey)
+	h.DB.SetSessionState(chatID, models.StateIdle)
+	h.send(chatID, "Приятного вечера!")
+}
+
+func (h *Handler) handleAteAt(chatID int64, dateKey string) {
+	h.DB.SetUserState(chatID, "wait_dinner:"+dateKey)
+	h.send(chatID, "Введите время ужина HH:MM")
 }
 
 // внутри handlers/callbacks.go или рядом
