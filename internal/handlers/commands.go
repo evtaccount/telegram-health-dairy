@@ -124,15 +124,10 @@ func validateInitialState(st models.State, cmd string) bool {
 	}
 }
 
-// gmtString возвращает строку вида "GMT+3", "GMT-05:30", "GMT".
+// gmtString("+03:00") → "GMT+3", gmtString("Europe/Riga") → "GMT+3"
 func gmtString(tz string) string {
-	// 1. Получаем location
-	loc, err := time.LoadLocation(tz)
-	if err != nil || tz == "Local" {
-		loc = time.Local
-	}
-	// 2. Сейчас в этой зоне
-	_, off := time.Now().In(loc).Zone() // offset в секундах
+	loc, _ := tzToLocation(tz)
+	_, off := time.Now().In(loc).Zone()
 	if off == 0 {
 		return "GMT"
 	}
@@ -144,7 +139,7 @@ func gmtString(tz string) string {
 	h := off / 3600
 	m := (off % 3600) / 60
 	if m == 0 {
-		return fmt.Sprintf("GMT%s%d", sign, h) // GMT+3
+		return fmt.Sprintf("GMT%s%d", sign, h)
 	}
-	return fmt.Sprintf("GMT%s%02d:%02d", sign, h, m) // GMT-05:30
+	return fmt.Sprintf("GMT%s%02d:%02d", sign, h, m)
 }

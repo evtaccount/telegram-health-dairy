@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -99,21 +100,19 @@ var offRx = regexp.MustCompile(`^(?i)(?:gmt|utc)?([+-]\d{1,2})(?::?(\d{2}))?$`)
 
 func validateTZ(input string) (string, error) {
 	tz, err := parseUserTZ(input)
-	log.Println(fmt.Printf("Parsed tz: %s", tz))
-
 	if err != nil {
 		return "", err
 	}
-
-	if _, err := time.LoadLocation(tz); err != nil {
+	// Попробуем получить *time.Location — и IANA, и "+03:00"
+	if _, err := tzToLocation(tz); err != nil {
 		return "", err
 	}
-
 	return tz, nil
 }
 
 func parseUserTZ(input string) (string, error) {
 	input = strings.TrimSpace(input)
+	log.Printf("Timezone input: @%s", input)
 
 	// 1. пробуем как IANA-имя
 	if _, err := time.LoadLocation(input); err == nil {
@@ -134,5 +133,25 @@ func parseUserTZ(input string) (string, error) {
 	}
 	// Нормализуем к формату "+03:00"
 	h, _ := strconv.Atoi(hPart)
+	log.Printf("Timezone parsing result: @%s", fmt.Sprintf("%+03d:%s", h, minPart))
 	return fmt.Sprintf("%+03d:%s", h, minPart), nil
+}
+
+// tzToLocation строит *time.Location из IANA-имени или смещения "+03:00".
+func tzToLocation(tz string) (*time.Location, error) {
+	if loc, err := time.LoadLocation(tz); err == nil {
+		return loc, nil // IANA ok
+	}
+	m := offRx.FindStringSubmatch(strings.ToUpper(tz))
+	if m == nil {
+		return nil, errors.New("unknown tz")
+	}
+	h, _ := strconv.Atoi(m[1]) // "+3" → 3
+	minStr := m[2]
+	min := 0
+	if minStr != "" {
+		min, _ = strconv.Atoi(minStr)
+	}
+	sec := h*3600 + int(math.Copysign(float64(min*60), float64(h)))
+	return time.FixedZone(tz, sec), nil
 }
