@@ -64,6 +64,9 @@ func (h *Handler) handleConfirmSettings(chatID int64) {
 
 	today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
 
+	debugState := "Текущий стейт: " + string(newState)
+	h.send(chatID, debugState)
+
 	switch newState {
 	case models.StateWaitingMorning:
 		// шлём вопрос «Жалобы / Нет жалоб»

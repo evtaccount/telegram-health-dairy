@@ -69,9 +69,6 @@ func (h *Handler) HandleText(msg *tgbotapi.Message) {
 		_ = h.DB.UpsertUser(u)
 		_ = h.DB.SetUserState(chatID, "")
 
-		h.DB.SetSessionState(chatID, "idle")
-		h.send(chatID, "Настройки сохранены!")
-
 		h.handleConfirmSettings(chatID)
 
 	case strings.HasPrefix(state, "wait_complaints:"):
