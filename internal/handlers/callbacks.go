@@ -148,13 +148,13 @@ func (h *Handler) showDebugAllPeriods(chatID int64, u *models.User, newState mod
 	debug := fmt.Sprintf(
 		"Текущий стейт: %s\n"+
 			"UTC: %s\n"+
-			"Локальное (%s): %s\n\n"+
-			"Окно утро   : %s — %s\n"+
-			"Окно вечер  : %s — %s\n\n"+
+			"Локальное время: %s\n\n (%s)"+
+			"Окно \"утро\": %s — %s\n"+
+			"Окно \"вечер\": %s — %s\n\n"+
 			"След. событие: %s (через %v)",
 		newState,
 		time.Now().UTC().Format("15:04:05"),
-		u.TZ, nowLocal.Format("15:04:05"),
+		nowLocal.Format("15:04:05"), u.TZ,
 		morningStart.Format("15:04"), morningEnd.Format("15:04"),
 		eveningStart.Format("15:04"), eveningEnd.Format("15:04"),
 		nextName, nextIn.Round(time.Minute),
@@ -194,30 +194,30 @@ func (h *Handler) handleAteAt(chatID int64, dateKey string) {
 
 // внутри handlers/callbacks.go или рядом
 func calcNextState(u *models.User) models.State {
-	loc, err := time.LoadLocation(u.TZ)
-	if err != nil {
-		// fallback – UTC
-		loc = time.UTC
-	}
+	loc, _ := tzToLocation(u.TZ) // IANA или +03:00 → *time.Location
 	now := time.Now().In(loc)
 
-	// parse HH:MM
 	parse := func(hm string) time.Time {
 		t, _ := time.ParseInLocation("15:04", hm, loc)
-		// привязываем к сегодняшней дате
 		return time.Date(now.Year(), now.Month(), now.Day(),
 			t.Hour(), t.Minute(), 0, 0, loc)
 	}
 	morningStart := parse(u.MorningAt)
 	eveningStart := parse(u.EveningAt)
 
-	if now.After(morningStart) && now.Before(morningStart.Add(2*time.Hour)) {
+	inWindow := func(start time.Time) bool {
+		end := start.Add(2 * time.Hour)
+		return !now.Before(start) && now.Before(end) // [start, end)
+	}
+
+	switch {
+	case inWindow(morningStart):
 		return models.StateWaitingMorning
-	}
-	if now.After(eveningStart) && now.Before(eveningStart.Add(2*time.Hour)) {
+	case inWindow(eveningStart):
 		return models.StateWaitingEvening
+	default:
+		return models.StateIdle
 	}
-	return models.StateIdle
 }
 
 func extractDateKey(t time.Time, data string) string {
