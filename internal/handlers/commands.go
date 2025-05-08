@@ -27,9 +27,12 @@ func (h *Handler) HandleCommand(msg *tgbotapi.Message) {
 	cmd := msg.Command()
 	st, _ := h.DB.GetSessionState(chatID)
 
-	if cmd == "reset" {
-		_ = h.DB.DropAll()
-		h.send(chatID, "Данные очищены")
+	if cmd == "reset_all" {
+		if err := h.DB.DropAll(); err != nil {
+			h.send(chatID, "Ошибка: "+err.Error())
+		} else {
+			h.send(chatID, "База удалена, перезапустите бот")
+		}
 	}
 
 	if !validateInitialState(st, cmd) {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "time/tzdata"
+
 	"telegram-health-dairy/internal/bot"
 	"telegram-health-dairy/internal/config"
 	"telegram-health-dairy/internal/handlers"
