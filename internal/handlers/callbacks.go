@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strconv"
 	"telegram-health-dairy/internal/models"
 	"time"
 
@@ -14,6 +15,22 @@ const (
 	btnAteAt        = "Поел в …"
 	btnChange       = "Изменить"
 	btnCancel       = "Отмена"
+)
+
+// Клавиатура для утреннего вопроса
+var morningKB = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(btnComplaints, btnComplaints),
+		tgbotapi.NewInlineKeyboardButtonData(btnNoComplaints, btnNoComplaints),
+	),
+)
+
+// Клавиатура для вечернего вопроса
+var eveningKB = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(btnAteNow, btnAteNow),
+		tgbotapi.NewInlineKeyboardButtonData(btnAteAt, btnAteAt),
+	),
 )
 
 func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
@@ -30,13 +47,47 @@ func (h *Handler) HandleCallback(cq *tgbotapi.CallbackQuery) {
 		newState := calcNextState(u)
 		_ = h.DB.SetSessionState(chatID, newState)
 
-		txt := "Настройки сохранены!\n\n/menu"
-		if newState == models.StateWaitingMorning {
-			txt = "Настройки сохранены! Ждём ваш ответ на утренний вопрос 🙂"
-		} else if newState == models.StateWaitingEvening {
-			txt = "Настройки сохранены! Ждём ваш ответ на вечерний вопрос 🙂"
+		today := time.Now().In(time.UTC).Format("2006-01-02") // дата-ключ
+
+		switch newState {
+
+		case models.StateWaitingMorning:
+			// шлём вопрос «Жалобы / Нет жалоб»
+			dateKey := today + "-morning"
+			msg := tgbotapi.NewMessage(chatID, "Доброе утро! Как самочувствие?")
+			msg.ReplyMarkup = morningKB // inline-кнопки
+			sent, _ := h.Bot.Send(msg)
+
+			// записываем pending + 0 reminded_at
+			h.DB.InsertPending(&models.PendingMessage{
+				ChatID:    chatID,
+				DateKey:   dateKey,
+				Type:      "morning",
+				MsgID:     sent.MessageID,
+				CreatedAt: time.Now().Unix(),
+			})
+			h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
+
+		case models.StateWaitingEvening:
+			dateKey := today + "-evening"
+			hrsLeft := 23 - time.Now().Hour()
+			txt := "Пора ужинать! До конца дня осталось " + strconv.Itoa(hrsLeft) + " ч."
+			msg := tgbotapi.NewMessage(chatID, txt)
+			msg.ReplyMarkup = eveningKB
+			sent, _ := h.Bot.Send(msg)
+
+			h.DB.InsertPending(&models.PendingMessage{
+				ChatID:    chatID,
+				DateKey:   dateKey,
+				Type:      "evening",
+				MsgID:     sent.MessageID,
+				CreatedAt: time.Now().Unix(),
+			})
+			h.send(chatID, "Настройки сохранены! Ждём ваш ответ 🙂")
+
+		default: // idle
+			h.send(chatID, "Настройки сохранены!\n\n/menu")
 		}
-		h.send(chatID, txt)
 	case data == cbCfgChange:
 		h.DB.SetUserState(chatID, "setup_morning")
 		h.send(chatID, "Введите время утреннего сообщения HH:MM")
